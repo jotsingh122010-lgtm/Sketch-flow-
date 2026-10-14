@@ -1,0 +1,10 @@
+{
+  "name": "SketchAR Studio",
+  "description": "Mobile-friendly AR drawing and tracing app for sketching on paper with live camera overlay and digital canvas.",
+  "requestFramePermissions": [
+    "camera"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

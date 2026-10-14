@@ -1,0 +1,103 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // 1. Global Default-Deny Catch-All
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Security Primitives & Helpers
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerifiedUser() {
+      return isSignedIn() && (request.auth.token.email_verified == true || request.auth.token.firebase.sign_in_provider == 'google.com');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    // Admin authorization check:
+    // Matches if user email matches configured admin or exists in admins collection
+    function isAdmin() {
+      return isSignedIn() && (
+        (request.auth.token.email == 'jotsingh122010@gmail.com') ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) ||
+        (exists(/databases/$(database)/documents/admin_settings/primary) &&
+         get(/databases/$(database)/documents/admin_settings/primary).data.adminEmail == request.auth.token.email)
+      );
+    }
+
+    function isValidProduct(data) {
+      return data.keys().hasAll(['name', 'category', 'difficulty', 'image']) &&
+             data.keys().hasOnly(['id', 'name', 'category', 'difficulty', 'image', 'description', 'createdAt', 'createdBy']) &&
+             data.name is string && data.name.size() > 0 && data.name.size() <= 100 &&
+             data.category is string && data.category.size() > 0 && data.category.size() <= 50 &&
+             data.difficulty in ['easy', 'medium', 'hard'] &&
+             data.image is string && data.image.size() > 0 && data.image.size() <= 1000000 &&
+             (!('description' in data) || (data.description is string && data.description.size() <= 500));
+    }
+
+    function isValidVisitor(data) {
+      return data.keys().hasAll(['uniqueName', 'platform', 'durationSeconds', 'status']) &&
+             data.keys().hasOnly(['uniqueName', 'platform', 'durationSeconds', 'status', 'firstSeen', 'lastSeen', 'ip']) &&
+             data.uniqueName is string && data.uniqueName.size() > 0 && data.uniqueName.size() <= 80 &&
+             data.platform is string && data.platform.size() > 0 && data.platform.size() <= 50 &&
+             data.durationSeconds is number && data.durationSeconds >= 0 &&
+             data.status in ['online', 'offline'];
+    }
+
+    function isValidAdminSettings(data) {
+      return data.keys().hasAll(['adminEmail', 'recoveryKey']) &&
+             data.keys().hasOnly(['adminEmail', 'recoveryKey', 'updatedAt', 'updatedBy']) &&
+             data.adminEmail is string && data.adminEmail.size() > 5 && data.adminEmail.size() <= 120 &&
+             data.recoveryKey is string && data.recoveryKey.size() >= 6 && data.recoveryKey.size() <= 128;
+    }
+
+    // Public / Protected Collections
+
+    // Products: Read is public, create/update/delete requires Admin
+    match /products/{productId} {
+      allow get, list: if true;
+      allow create: if isValidId(productId) && isAdmin() && isValidProduct(incoming());
+      allow update: if isValidId(productId) && isAdmin() && isValidProduct(incoming());
+      allow delete: if isValidId(productId) && isAdmin();
+    }
+
+    // Visitor Activity: Clients can log/update their session ping, only Admin can list/view
+    match /visitors/{visitorId} {
+      allow get, list: if isAdmin();
+      allow create: if isValidId(visitorId) && isValidVisitor(incoming());
+      allow update: if isValidId(visitorId) && isValidVisitor(incoming());
+      allow delete: if isValidId(visitorId) && isAdmin();
+    }
+
+    // Admin Settings: Stores dynamic admin email and recovery key
+    match /admin_settings/{settingId} {
+      allow get: if true; // Allows the app to verify active admin email on client boot
+      allow list: if isAdmin();
+      allow create: if isValidId(settingId) && (isAdmin() || !exists(/databases/$(database)/documents/admin_settings/primary)) && isValidAdminSettings(incoming());
+      allow update: if isValidId(settingId) && (isAdmin() || (incoming().recoveryKey == existing().recoveryKey)) && isValidAdminSettings(incoming());
+      allow delete: if isValidId(settingId) && isAdmin();
+    }
+
+    // Admins Collection
+    match /admins/{adminId} {
+      allow get: if isSignedIn() && (request.auth.uid == adminId || isAdmin());
+      allow list: if isAdmin();
+      allow create, update, delete: if isAdmin();
+    }
+  }
+}

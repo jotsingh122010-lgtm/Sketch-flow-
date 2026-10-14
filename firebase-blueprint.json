@@ -1,0 +1,157 @@
+{
+  "entities": {
+    "AdminSettings": {
+      "title": "AdminSettings",
+      "description": "Global admin configuration securely stored in Firestore",
+      "type": "object",
+      "properties": {
+        "adminEmail": {
+          "type": "string",
+          "format": "email",
+          "description": "Current primary admin email"
+        },
+        "recoveryKey": {
+          "type": "string",
+          "description": "Secret recovery key for admin email reset"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Last updated timestamp"
+        },
+        "updatedBy": {
+          "type": "string",
+          "description": "UID or email of modifier"
+        }
+      },
+      "required": ["adminEmail", "recoveryKey"]
+    },
+    "AdminUser": {
+      "title": "AdminUser",
+      "description": "Authorized admin users",
+      "type": "object",
+      "properties": {
+        "email": {
+          "type": "string",
+          "format": "email",
+          "description": "Admin email"
+        },
+        "role": {
+          "type": "string",
+          "enum": ["superadmin", "admin"],
+          "description": "Role"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Created time"
+        }
+      },
+      "required": ["email", "role"]
+    },
+    "Product": {
+      "title": "Product",
+      "description": "Drawing template or artwork product",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Product title",
+          "maxLength": 100
+        },
+        "category": {
+          "type": "string",
+          "description": "Category name",
+          "maxLength": 50
+        },
+        "difficulty": {
+          "type": "string",
+          "enum": ["easy", "medium", "hard"],
+          "description": "Difficulty level"
+        },
+        "image": {
+          "type": "string",
+          "description": "Image data or URL"
+        },
+        "description": {
+          "type": "string",
+          "description": "Optional description",
+          "maxLength": 500
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Creation date"
+        },
+        "createdBy": {
+          "type": "string",
+          "description": "Admin email or UID who created it"
+        }
+      },
+      "required": ["name", "category", "difficulty", "image"]
+    },
+    "Visitor": {
+      "title": "Visitor",
+      "description": "Visitor session and analytics",
+      "type": "object",
+      "properties": {
+        "uniqueName": {
+          "type": "string",
+          "description": "Anonymous creative nickname",
+          "maxLength": 80
+        },
+        "platform": {
+          "type": "string",
+          "description": "Device platform",
+          "maxLength": 50
+        },
+        "durationSeconds": {
+          "type": "number",
+          "description": "Time spent in seconds"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["online", "offline"],
+          "description": "Connection status"
+        },
+        "lastSeen": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Last ping timestamp"
+        },
+        "firstSeen": {
+          "type": "string",
+          "format": "date-time",
+          "description": "First connection timestamp"
+        }
+      },
+      "required": ["uniqueName", "platform", "durationSeconds", "status"]
+    }
+  },
+  "firestore": {
+    "/admin_settings/{settingId}": {
+      "schema": {
+        "$ref": "#/entities/AdminSettings"
+      },
+      "description": "Admin settings and current active admin email configuration"
+    },
+    "/admins/{adminId}": {
+      "schema": {
+        "$ref": "#/entities/AdminUser"
+      },
+      "description": "Admin role authorizations"
+    },
+    "/products/{productId}": {
+      "schema": {
+        "$ref": "#/entities/Product"
+      },
+      "description": "Drawing templates created by admins"
+    },
+    "/visitors/{visitorId}": {
+      "schema": {
+        "$ref": "#/entities/Visitor"
+      },
+      "description": "Visitor session tracking"
+    }
+  }
+}
